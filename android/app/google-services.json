@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "22042317840",
+    "project_id": "wyvern-notes",
+    "storage_bucket": "wyvern-notes.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:22042317840:android:2243a6130a7830a03ce695",
+        "android_client_info": {
+          "package_name": "com.example.wyvern_notes"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDaADccA-J1dx7kiBFIdWmEyQ5R7FfocRw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
