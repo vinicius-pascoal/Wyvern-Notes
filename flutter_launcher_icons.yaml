@@ -1,0 +1,21 @@
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/wyvern_launcher_icon.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true
+
+  web:
+    generate: true
+    image_path: "assets/icons/wyvern_launcher_icon.png"
+    background_color: "#061A3A"
+    theme_color: "#061A3A"
+
+  windows:
+    generate: true
+    image_path: "assets/icons/wyvern_launcher_icon.png"
+    icon_size: 48
+
+  macos:
+    generate: true
+    image_path: "assets/icons/wyvern_launcher_icon.png"
