@@ -11,7 +11,7 @@ class NoteService {
     final user = _auth.currentUser;
 
     if (user == null) {
-      throw Exception('Usuário não autenticado.');
+      throw Exception('Usuario nao autenticado.');
     }
 
     return user.uid;
@@ -42,8 +42,9 @@ class NoteService {
     required String content,
   }) async {
     await _notesRef(folderId).add({
-      'title': title.trim().isEmpty ? 'Sem título' : title.trim(),
+      'title': title.trim().isEmpty ? 'Sem titulo' : title.trim(),
       'content': content.trim(),
+      'isFavorite': false,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -58,7 +59,7 @@ class NoteService {
     required String content,
   }) async {
     await _notesRef(folderId).doc(noteId).update({
-      'title': title.trim().isEmpty ? 'Sem título' : title.trim(),
+      'title': title.trim().isEmpty ? 'Sem titulo' : title.trim(),
       'content': content.trim(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -71,6 +72,19 @@ class NoteService {
     required String noteId,
   }) async {
     await _notesRef(folderId).doc(noteId).delete();
+
+    await _updateFolderDate(folderId);
+  }
+
+  Future<void> toggleFavorite({
+    required String folderId,
+    required String noteId,
+    required bool isFavorite,
+  }) async {
+    await _notesRef(folderId).doc(noteId).update({
+      'isFavorite': isFavorite,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
 
     await _updateFolderDate(folderId);
   }

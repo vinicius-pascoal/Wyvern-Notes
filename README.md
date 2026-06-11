@@ -384,18 +384,12 @@ Vermelho:     #E53935
 
 - Busca de notas por título e conteúdo;
 - Favoritar notas;
-- Fixar notas importantes;
 - Exportar uma pasta inteira em PDF;
-- Editor com Markdown;
 - Mecânica de checklist dentro das notas, permitindo marcar itens como concluídos;
 - Opção para marcar uma nota como concluída, fazendo com que ela saia automaticamente da lista principal de notas ativas;
-- Modo offline;
-- Sincronização em tempo real;
-- Compartilhamento de notas;
 - Upload de imagens usando Firebase Storage;
 - Modo claro/escuro;
 - Tags para organização;
-- Lixeira para recuperar notas excluídas.
 
 ---
 

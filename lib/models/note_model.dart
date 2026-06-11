@@ -4,6 +4,7 @@ class NoteModel {
   final String id;
   final String title;
   final String content;
+  final bool isFavorite;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -11,6 +12,7 @@ class NoteModel {
     required this.id,
     required this.title,
     required this.content,
+    required this.isFavorite,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -22,6 +24,7 @@ class NoteModel {
       id: doc.id,
       title: data['title'] ?? '',
       content: data['content'] ?? '',
+      isFavorite: data['isFavorite'] ?? false,
       createdAt: _readDate(data['createdAt']),
       updatedAt: _readDate(data['updatedAt']),
     );
