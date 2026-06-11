@@ -12,53 +12,75 @@ class PdfExportService {
     List<ChecklistItemModel> checklist = const [],
   }) async {
     final pdf = pw.Document();
+    final regularFont = await PdfGoogleFonts.notoSansRegular();
+    final boldFont = await PdfGoogleFonts.notoSansBold();
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
+        theme: pw.ThemeData.withFont(
+          base: regularFont,
+          bold: boldFont,
+        ),
         build: (context) {
           return [
             pw.Text(
               'Wyvern Notes',
               style: pw.TextStyle(
+                font: boldFont,
                 fontSize: 22,
-                fontWeight: pw.FontWeight.bold,
                 color: PdfColors.blue900,
               ),
             ),
             pw.SizedBox(height: 8),
             pw.Text(
               'Pasta: $folderName',
-              style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700),
+              style: pw.TextStyle(
+                font: regularFont,
+                fontSize: 12,
+                color: PdfColors.grey700,
+              ),
             ),
             pw.Divider(),
             pw.SizedBox(height: 16),
             pw.Text(
               title.trim().isEmpty ? 'Sem titulo' : title.trim(),
-              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+              style: pw.TextStyle(
+                font: boldFont,
+                fontSize: 20,
+              ),
             ),
             pw.SizedBox(height: 20),
-            pw.Text(
-              content.trim().isEmpty ? 'Nota vazia.' : content.trim(),
-              style: const pw.TextStyle(fontSize: 13, lineSpacing: 5),
+            ..._buildContentWidgets(
+              content: content,
+              regularFont: regularFont,
             ),
             if (checklist.isNotEmpty) ...[
               pw.SizedBox(height: 24),
               pw.Text(
                 'Checklist',
                 style: pw.TextStyle(
+                  font: boldFont,
                   fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
                 ),
               ),
               pw.SizedBox(height: 10),
               ...checklist.map(
                 (item) => pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 6),
-                  child: pw.Text(
-                    '${item.isDone ? '[x]' : '[ ]'} ${item.text}',
-                    style: const pw.TextStyle(fontSize: 12, lineSpacing: 4),
+                  padding: const pw.EdgeInsets.only(bottom: 8),
+                  child: pw.Bullet(
+                    text: item.text.trim().isEmpty ? 'Item vazio' : item.text,
+                    bulletMargin: const pw.EdgeInsets.only(right: 8, top: 2),
+                    bulletSize: 5,
+                    style: pw.TextStyle(
+                      font: regularFont,
+                      fontSize: 12,
+                      lineSpacing: 4,
+                    ),
+                    bulletColor: item.isDone
+                        ? PdfColors.green700
+                        : PdfColors.grey700,
                   ),
                 ),
               ),
@@ -69,5 +91,47 @@ class PdfExportService {
     );
 
     await Printing.layoutPdf(onLayout: (format) async => pdf.save());
+  }
+
+  List<pw.Widget> _buildContentWidgets({
+    required String content,
+    required pw.Font regularFont,
+  }) {
+    final cleanContent = content.trim();
+
+    if (cleanContent.isEmpty) {
+      return [
+        pw.Text(
+          'Nota vazia.',
+          style: pw.TextStyle(
+            font: regularFont,
+            fontSize: 13,
+            lineSpacing: 5,
+          ),
+        ),
+      ];
+    }
+
+    final paragraphs = cleanContent
+        .split(RegExp(r'\n\s*\n'))
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList();
+
+    return paragraphs
+        .map(
+          (paragraph) => pw.Padding(
+            padding: const pw.EdgeInsets.only(bottom: 12),
+            child: pw.Paragraph(
+              text: paragraph,
+              style: pw.TextStyle(
+                font: regularFont,
+                fontSize: 13,
+                lineSpacing: 5,
+              ),
+            ),
+          ),
+        )
+        .toList();
   }
 }

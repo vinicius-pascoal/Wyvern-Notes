@@ -257,6 +257,18 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           ),
           actions: [
             IconButton(
+              onPressed: () => _toggleCompleted(!_isCompleted),
+              tooltip: _isCompleted
+                  ? 'Marcar como nao concluida'
+                  : 'Marcar como concluida',
+              icon: Icon(
+                _isCompleted
+                    ? Icons.check_circle
+                    : Icons.check_circle_outline,
+                color: _isCompleted ? Colors.green : AppColors.textLight,
+              ),
+            ),
+            IconButton(
               onPressed: _exportPdf,
               icon: const Icon(Icons.picture_as_pdf_outlined),
             ),
@@ -282,19 +294,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                   ),
                 ),
                 const Divider(color: Colors.white24),
-                SwitchListTile(
-                  value: _isCompleted,
-                  activeColor: AppColors.secondary,
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text(
-                    'Marcar nota como concluida',
-                    style: TextStyle(color: AppColors.textLight),
-                  ),
-                  subtitle: const Text(
-                    'Notas concluidas saem da lista principal de ativas.',
-                    style: TextStyle(color: AppColors.muted),
-                  ),
-                  onChanged: _toggleCompleted,
+                Text(
+                  _isCompleted
+                      ? 'Nota concluida. Ela sai da lista principal de ativas.'
+                      : 'Use o check no canto superior direito para concluir a nota.',
+                  style: const TextStyle(color: AppColors.muted),
                 ),
                 const SizedBox(height: 16),
                 TextField(
