@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -14,6 +17,7 @@ class PdfExportService {
     final pdf = pw.Document();
     final regularFont = await PdfGoogleFonts.notoSansRegular();
     final boldFont = await PdfGoogleFonts.notoSansBold();
+    final logoBytes = await _loadLogoBytes();
 
     pdf.addPage(
       pw.MultiPage(
@@ -25,12 +29,35 @@ class PdfExportService {
         ),
         build: (context) {
           return [
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                if (logoBytes != null)
+                  pw.Container(
+                    width: 28,
+                    height: 28,
+                    margin: const pw.EdgeInsets.only(right: 10),
+                    child: pw.Image(
+                      pw.MemoryImage(logoBytes),
+                      fit: pw.BoxFit.contain,
+                    ),
+                  ),
+                pw.Text(
+                  'Wyvern Notes',
+                  style: pw.TextStyle(
+                    font: boldFont,
+                    fontSize: 22,
+                    color: PdfColors.blue900,
+                  ),
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 16),
             pw.Text(
-              'Wyvern Notes',
+              title.trim().isEmpty ? 'Sem titulo' : title.trim(),
               style: pw.TextStyle(
                 font: boldFont,
-                fontSize: 22,
-                color: PdfColors.blue900,
+                fontSize: 20,
               ),
             ),
             pw.SizedBox(height: 8),
@@ -43,14 +70,6 @@ class PdfExportService {
               ),
             ),
             pw.Divider(),
-            pw.SizedBox(height: 16),
-            pw.Text(
-              title.trim().isEmpty ? 'Sem titulo' : title.trim(),
-              style: pw.TextStyle(
-                font: boldFont,
-                fontSize: 20,
-              ),
-            ),
             pw.SizedBox(height: 20),
             ..._buildContentWidgets(
               content: content,
@@ -133,5 +152,14 @@ class PdfExportService {
           ),
         )
         .toList();
+  }
+
+  Future<Uint8List?> _loadLogoBytes() async {
+    try {
+      final data = await rootBundle.load('assets/icons/wyvern_launcher_icon.png');
+      return data.buffer.asUint8List();
+    } catch (_) {
+      return null;
+    }
   }
 }
