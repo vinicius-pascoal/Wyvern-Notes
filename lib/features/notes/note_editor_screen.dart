@@ -16,14 +16,26 @@ class NoteEditorScreen extends StatefulWidget {
   State<NoteEditorScreen> createState() => _NoteEditorScreenState();
 }
 
+class _ChecklistDraftItem {
+  final TextEditingController controller;
+  bool isDone;
+
+  _ChecklistDraftItem({
+    required this.controller,
+    required this.isDone,
+  });
+}
+
 class _NoteEditorScreenState extends State<NoteEditorScreen> {
   final NoteService _noteService = NoteService();
   final PdfExportService _pdfExportService = PdfExportService();
 
   late final TextEditingController _titleController;
   late final TextEditingController _contentController;
+  final List<_ChecklistDraftItem> _checklistItems = [];
 
   bool _saving = false;
+  bool _isCompleted = false;
 
   bool get _isEditing => widget.note != null;
 
@@ -32,28 +44,65 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     super.initState();
 
     _titleController = TextEditingController(text: widget.note?.title ?? '');
+    _contentController = TextEditingController(text: widget.note?.content ?? '');
+    _isCompleted = widget.note?.isCompleted ?? false;
 
-    _contentController = TextEditingController(
-      text: widget.note?.content ?? '',
-    );
+    for (final item in widget.note?.checklist ?? const <ChecklistItemModel>[]) {
+      _checklistItems.add(
+        _ChecklistDraftItem(
+          controller: TextEditingController(text: item.text),
+          isDone: item.isDone,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _contentController.dispose();
+
+    for (final item in _checklistItems) {
+      item.controller.dispose();
+    }
+
+    super.dispose();
+  }
+
+  List<ChecklistItemModel> _buildChecklistPayload() {
+    return _checklistItems
+        .map(
+          (item) => ChecklistItemModel(
+            text: item.controller.text.trim(),
+            isDone: item.isDone,
+          ),
+        )
+        .where((item) => item.text.isNotEmpty)
+        .toList();
   }
 
   Future<void> _save() async {
     setState(() => _saving = true);
 
     try {
+      final checklist = _buildChecklistPayload();
+
       if (_isEditing) {
         await _noteService.updateNote(
           folderId: widget.folder.id,
           noteId: widget.note!.id,
           title: _titleController.text,
           content: _contentController.text,
+          isCompleted: _isCompleted,
+          checklist: checklist,
         );
       } else {
         await _noteService.createNote(
           folderId: widget.folder.id,
           title: _titleController.text,
           content: _contentController.text,
+          isCompleted: _isCompleted,
+          checklist: checklist,
         );
       }
 
@@ -78,7 +127,25 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       folderName: widget.folder.name,
       title: _titleController.text,
       content: _contentController.text,
+      checklist: _buildChecklistPayload(),
     );
+  }
+
+  void _addChecklistItem() {
+    setState(() {
+      _checklistItems.add(
+        _ChecklistDraftItem(
+          controller: TextEditingController(),
+          isDone: false,
+        ),
+      );
+    });
+  }
+
+  void _removeChecklistItem(int index) {
+    final item = _checklistItems.removeAt(index);
+    item.controller.dispose();
+    setState(() {});
   }
 
   @override
@@ -105,9 +172,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         ],
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextField(
                 controller: _titleController,
@@ -117,31 +185,133 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                   fontWeight: FontWeight.bold,
                 ),
                 decoration: const InputDecoration(
-                  hintText: 'Título da nota',
+                  hintText: 'Titulo da nota',
                   hintStyle: TextStyle(color: AppColors.muted),
                   border: InputBorder.none,
                 ),
               ),
               const Divider(color: Colors.white24),
-              Expanded(
-                child: TextField(
-                  controller: _contentController,
-                  expands: true,
-                  maxLines: null,
-                  minLines: null,
-                  textAlignVertical: TextAlignVertical.top,
-                  style: const TextStyle(
-                    color: AppColors.textLight,
-                    fontSize: 16,
-                    height: 1.5,
+              SwitchListTile(
+                value: _isCompleted,
+                activeColor: AppColors.secondary,
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Marcar nota como concluida',
+                  style: TextStyle(color: AppColors.textLight),
+                ),
+                subtitle: const Text(
+                  'Notas concluidas saem da lista principal de ativas.',
+                  style: TextStyle(color: AppColors.muted),
+                ),
+                onChanged: (value) => setState(() => _isCompleted = value),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _contentController,
+                minLines: 8,
+                maxLines: null,
+                textAlignVertical: TextAlignVertical.top,
+                style: const TextStyle(
+                  color: AppColors.textLight,
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Comece a escrever...',
+                  hintStyle: const TextStyle(color: AppColors.muted),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Colors.white24),
                   ),
-                  decoration: const InputDecoration(
-                    hintText: 'Comece a escrever...',
-                    hintStyle: TextStyle(color: AppColors.muted),
-                    border: InputBorder.none,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Colors.white24),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: AppColors.secondary),
                   ),
                 ),
               ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Checklist',
+                      style: TextStyle(
+                        color: AppColors.textLight,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _addChecklistItem,
+                    icon: const Icon(Icons.add, color: AppColors.secondary),
+                    label: const Text(
+                      'Adicionar item',
+                      style: TextStyle(color: AppColors.secondary),
+                    ),
+                  ),
+                ],
+              ),
+              if (_checklistItems.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: const Text(
+                    'Adicione itens para transformar a nota em checklist.',
+                    style: TextStyle(color: AppColors.muted),
+                  ),
+                ),
+              ...List.generate(_checklistItems.length, (index) {
+                final item = _checklistItems[index];
+
+                return Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Checkbox(
+                        value: item.isDone,
+                        activeColor: AppColors.secondary,
+                        onChanged: (value) {
+                          setState(() => item.isDone = value ?? false);
+                        },
+                      ),
+                      Expanded(
+                        child: TextField(
+                          controller: item.controller,
+                          style: const TextStyle(color: AppColors.textLight),
+                          decoration: InputDecoration(
+                            hintText: 'Item da checklist',
+                            hintStyle: const TextStyle(color: AppColors.muted),
+                            filled: true,
+                            fillColor: Colors.white.withOpacity(0.06),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => _removeChecklistItem(index),
+                        icon: const Icon(
+                          Icons.close,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
             ],
           ),
         ),

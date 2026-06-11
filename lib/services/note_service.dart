@@ -40,11 +40,15 @@ class NoteService {
     required String folderId,
     required String title,
     required String content,
+    required bool isCompleted,
+    required List<ChecklistItemModel> checklist,
   }) async {
     await _notesRef(folderId).add({
       'title': title.trim().isEmpty ? 'Sem titulo' : title.trim(),
       'content': content.trim(),
       'isFavorite': false,
+      'isCompleted': isCompleted,
+      'checklist': checklist.map((item) => item.toMap()).toList(),
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -57,10 +61,14 @@ class NoteService {
     required String noteId,
     required String title,
     required String content,
+    required bool isCompleted,
+    required List<ChecklistItemModel> checklist,
   }) async {
     await _notesRef(folderId).doc(noteId).update({
       'title': title.trim().isEmpty ? 'Sem titulo' : title.trim(),
       'content': content.trim(),
+      'isCompleted': isCompleted,
+      'checklist': checklist.map((item) => item.toMap()).toList(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
@@ -83,6 +91,19 @@ class NoteService {
   }) async {
     await _notesRef(folderId).doc(noteId).update({
       'isFavorite': isFavorite,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await _updateFolderDate(folderId);
+  }
+
+  Future<void> toggleCompleted({
+    required String folderId,
+    required String noteId,
+    required bool isCompleted,
+  }) async {
+    await _notesRef(folderId).doc(noteId).update({
+      'isCompleted': isCompleted,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 

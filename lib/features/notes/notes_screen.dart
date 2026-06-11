@@ -43,13 +43,24 @@ class _NotesScreenState extends State<NotesScreen> {
     );
   }
 
+  Future<void> _toggleCompleted(NoteModel note) async {
+    await _noteService.toggleCompleted(
+      folderId: widget.folder.id,
+      noteId: note.id,
+      isCompleted: !note.isCompleted,
+    );
+  }
+
   List<NoteModel> _filterNotes(List<NoteModel> notes) {
     final query = _searchQuery.trim().toLowerCase();
     final filtered = query.isEmpty
         ? List<NoteModel>.from(notes)
         : notes.where((note) {
             return note.title.toLowerCase().contains(query) ||
-                note.content.toLowerCase().contains(query);
+                note.content.toLowerCase().contains(query) ||
+                note.checklist.any(
+                  (item) => item.text.toLowerCase().contains(query),
+                );
           }).toList();
 
     filtered.sort((a, b) {
@@ -63,12 +74,127 @@ class _NotesScreenState extends State<NotesScreen> {
     return filtered;
   }
 
-  String _buildPreview(String content) {
-    if (content.isEmpty) {
-      return 'Sem conteudo';
+  String _buildPreview(NoteModel note) {
+    if (note.content.isNotEmpty) {
+      return note.content.length > 80
+          ? '${note.content.substring(0, 80)}...'
+          : note.content;
     }
 
-    return content.length > 80 ? '${content.substring(0, 80)}...' : content;
+    if (note.checklist.isNotEmpty) {
+      return '${note.completedChecklistCount}/${note.checklist.length} itens concluidos';
+    }
+
+    return 'Sem conteudo';
+  }
+
+  Widget _buildNoteTile(NoteModel note) {
+    return Card(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 10,
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                note.title,
+                style: TextStyle(
+                  color: AppColors.textDark,
+                  fontWeight: FontWeight.bold,
+                  decoration: note.isCompleted
+                      ? TextDecoration.lineThrough
+                      : TextDecoration.none,
+                ),
+              ),
+            ),
+            if (note.isFavorite)
+              const Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Icon(
+                  Icons.star,
+                  color: Colors.amber,
+                  size: 20,
+                ),
+              ),
+          ],
+        ),
+        subtitle: Text(
+          '${_buildPreview(note)}\nAtualizada em ${DateFormatter.format(note.updatedAt)}',
+          style: const TextStyle(color: Colors.black54),
+        ),
+        isThreeLine: true,
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => NoteEditorScreen(
+                folder: widget.folder,
+                note: note,
+              ),
+            ),
+          );
+        },
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: note.isCompleted
+                  ? 'Reabrir nota'
+                  : 'Marcar nota como concluida',
+              icon: Icon(
+                note.isCompleted
+                    ? Icons.check_circle
+                    : Icons.check_circle_outline,
+                color: note.isCompleted
+                    ? Colors.green
+                    : Colors.black45,
+              ),
+              onPressed: () => _toggleCompleted(note),
+            ),
+            IconButton(
+              tooltip: note.isFavorite
+                  ? 'Remover dos favoritos'
+                  : 'Favoritar nota',
+              icon: Icon(
+                note.isFavorite ? Icons.star : Icons.star_outline,
+                color: note.isFavorite ? Colors.amber : Colors.black45,
+              ),
+              onPressed: () => _toggleFavorite(note),
+            ),
+            IconButton(
+              icon: const Icon(
+                Icons.delete_outline,
+                color: AppColors.danger,
+              ),
+              onPressed: () async {
+                await _deleteNote(
+                  folderId: widget.folder.id,
+                  noteId: note.id,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      child: Center(
+        child: Text(
+          text,
+          style: const TextStyle(color: AppColors.muted),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
   }
 
   @override
@@ -95,7 +221,7 @@ class _NotesScreenState extends State<NotesScreen> {
               onChanged: (value) => setState(() => _searchQuery = value),
               style: const TextStyle(color: AppColors.textDark),
               decoration: InputDecoration(
-                hintText: 'Buscar por titulo ou conteudo',
+                hintText: 'Buscar por titulo, conteudo ou checklist',
                 hintStyle: const TextStyle(color: Colors.black45),
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchQuery.isEmpty
@@ -131,110 +257,78 @@ class _NotesScreenState extends State<NotesScreen> {
                 final notes = snapshot.data ?? [];
 
                 if (notes.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'Nenhuma anotacao nesta pasta.',
-                      style: TextStyle(color: AppColors.muted),
-                    ),
-                  );
+                  return _buildEmptyState('Nenhuma anotacao nesta pasta.');
                 }
 
                 final filteredNotes = _filterNotes(notes);
+                final activeNotes = filteredNotes
+                    .where((note) => !note.isCompleted)
+                    .toList();
+                final completedNotes = filteredNotes
+                    .where((note) => note.isCompleted)
+                    .toList();
 
-                if (filteredNotes.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'Nenhuma nota encontrada para a busca.',
-                      style: TextStyle(color: AppColors.muted),
-                    ),
+                if (activeNotes.isEmpty && completedNotes.isEmpty) {
+                  return _buildEmptyState(
+                    'Nenhuma nota encontrada para a busca.',
                   );
                 }
 
-                return ListView.separated(
+                return ListView(
                   padding: const EdgeInsets.all(16),
-                  itemCount: filteredNotes.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final note = filteredNotes[index];
-
-                    return Card(
-                      color: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
+                  children: [
+                    const Text(
+                      'Notas ativas',
+                      style: TextStyle(
+                        color: AppColors.textLight,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 10,
-                        ),
-                        title: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                note.title,
-                                style: const TextStyle(
-                                  color: AppColors.textDark,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            if (note.isFavorite)
-                              const Padding(
-                                padding: EdgeInsets.only(left: 8),
-                                child: Icon(
-                                  Icons.star,
-                                  color: Colors.amber,
-                                  size: 20,
-                                ),
-                              ),
-                          ],
-                        ),
-                        subtitle: Text(
-                          '${_buildPreview(note.content)}\nAtualizada em ${DateFormatter.format(note.updatedAt)}',
-                          style: const TextStyle(color: Colors.black54),
-                        ),
-                        isThreeLine: true,
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => NoteEditorScreen(
-                                folder: widget.folder,
-                                note: note,
-                              ),
-                            ),
-                          );
-                        },
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                note.isFavorite
-                                    ? Icons.star
-                                    : Icons.star_outline,
-                                color: note.isFavorite
-                                    ? Colors.amber
-                                    : Colors.black45,
-                              ),
-                              onPressed: () => _toggleFavorite(note),
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                color: AppColors.danger,
-                              ),
-                              onPressed: () async {
-                                await _deleteNote(
-                                  folderId: widget.folder.id,
-                                  noteId: note.id,
-                                );
-                              },
-                            ),
-                          ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (activeNotes.isEmpty)
+                      _buildEmptyState('Nenhuma nota ativa encontrada.')
+                    else
+                      ...activeNotes.map(
+                        (note) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildNoteTile(note),
                         ),
                       ),
-                    );
-                  },
+                    const SizedBox(height: 8),
+                    Theme(
+                      data: Theme.of(context).copyWith(
+                        dividerColor: Colors.transparent,
+                      ),
+                      child: ExpansionTile(
+                        initiallyExpanded: completedNotes.isNotEmpty,
+                        tilePadding: EdgeInsets.zero,
+                        collapsedIconColor: AppColors.muted,
+                        iconColor: AppColors.textLight,
+                        title: Text(
+                          'Concluidas (${completedNotes.length})',
+                          style: const TextStyle(
+                            color: AppColors.textLight,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        children: completedNotes.isEmpty
+                            ? [
+                                _buildEmptyState(
+                                  'Nenhuma nota concluida por enquanto.',
+                                ),
+                              ]
+                            : completedNotes
+                                .map(
+                                  (note) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _buildNoteTile(note),
+                                  ),
+                                )
+                                .toList(),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
