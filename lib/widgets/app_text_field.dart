@@ -32,6 +32,16 @@ class AppTextField extends StatelessWidget {
         filled: true,
         fillColor: Colors.white,
         labelText: label,
+        labelStyle: const TextStyle(
+          color: AppColors.textDark,
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+        ),
+        floatingLabelStyle: const TextStyle(
+          color: AppColors.primary,
+          fontWeight: FontWeight.bold,
+          fontSize: 15,
+        ),
         prefixIcon: icon == null ? null : Icon(icon),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
