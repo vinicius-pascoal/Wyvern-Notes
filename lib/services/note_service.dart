@@ -36,14 +36,14 @@ class NoteService {
         );
   }
 
-  Future<void> createNote({
+  Future<String> createNote({
     required String folderId,
     required String title,
     required String content,
     required bool isCompleted,
     required List<ChecklistItemModel> checklist,
   }) async {
-    await _notesRef(folderId).add({
+    final doc = await _notesRef(folderId).add({
       'title': title.trim().isEmpty ? 'Sem titulo' : title.trim(),
       'content': content.trim(),
       'isFavorite': false,
@@ -54,6 +54,8 @@ class NoteService {
     });
 
     await _updateFolderDate(folderId);
+
+    return doc.id;
   }
 
   Future<void> updateNote({
